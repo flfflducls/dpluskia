@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>4x4 카드 게임판</title>
+  <title>4x4 LoL 카드 게임판</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -22,34 +22,79 @@
     }
   </style>
 </head>
-<body class="bg-slate-900 min-h-screen flex flex-col items-center justify-center p-4 select-none">
+<!-- 배경 이미지(gg.png) 설정 -->
+<body class="min-h-screen flex flex-col items-center justify-center p-4 select-none bg-cover bg-center bg-no-repeat relative" style="background-image: url('gg.png');">
+
+  <!-- 배경 딤 처리 오버레이 -->
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-[2px] -z-10"></div>
 
   <!-- 헤더 영역 -->
-  <h1 class="text-3xl font-bold text-white mb-6 tracking-wide">4x4 카드 게임</h1>
+  <h1 class="text-3xl md:text-4xl font-extrabold text-white mb-6 tracking-wide drop-shadow-lg flex items-center gap-2">
+    <span>⚔️</span> LoL 카드 짝맞추기
+  </h1>
 
   <!-- 4x4 카드 그리드 판 -->
-  <div id="card-board" class="grid grid-cols-4 gap-3 w-full max-w-md aspect-square bg-slate-800 p-4 rounded-2xl shadow-2xl border border-slate-700">
+  <div id="card-board" class="grid grid-cols-4 gap-3 w-full max-w-md aspect-square bg-slate-900/80 backdrop-blur-md p-4 rounded-2xl shadow-2xl border border-white/20">
     <!-- 자바스크립트에 의해 16개의 카드가 동적으로 생성됩니다 -->
   </div>
 
-  <!-- 상태 및 리셋 버튼 -->
-  <div class="mt-6 flex items-center gap-4">
-    <button id="reset-btn" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg shadow-md transition duration-200 active:scale-95">
+  <!-- 하단 컨트롤 영역 -->
+  <div class="mt-6 flex items-center gap-3">
+    <button id="reset-btn" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg transition duration-200 active:scale-95 border border-blue-400/40">
       게임 다시 시작
+    </button>
+    <!-- 음소거 토글 버튼 -->
+    <button id="bgm-btn" class="px-4 py-2.5 bg-slate-800/80 hover:bg-slate-700 text-amber-400 font-bold rounded-xl shadow-lg border border-amber-400/30 transition">
+      🔊 BGM 켜짐
     </button>
   </div>
 
   <script>
-    // 이모지 쌍 데이터 (8개 이모지 x 2 = 총 16장)
-    const cardIcons = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼'];
-    let cardsData = [...cardIcons, ...cardIcons];
+    // 오디오 요소 생성 및 음원 URL 설정 (무료 웅장한 BGM 및 효과음)
+    const bgm = new Audio('https://cdn.pixabay.com/download/audio/2022/03/10/audio_c8c8a73467.mp3?filename=epic-hollywood-trailer-108743.mp3');
+    bgm.loop = true;
+    bgm.volume = 0.3; // 배경음악 볼륨 30%
+
+    const flipSfx = new Audio('https://cdn.pixabay.com/download/audio/2022/03/24/audio_c8c6a6f198.mp3?filename=card-flip-89308.mp3');
+    flipSfx.volume = 0.5;
+
+    const matchSfx = new Audio('https://cdn.pixabay.com/download/audio/2021/08/09/audio_8844888899.mp3?filename=success-fanfare-trumpets-6185.mp3');
+    matchSfx.volume = 0.6;
+
+    let isMuted = false;
+    let hasPlayedBgm = false;
+
+    // 브라우저 정책상 사용자 첫 클릭 시 BGM 재생 시작
+    function startBgmOnFirstInteraction() {
+      if (!hasPlayedBgm && !isMuted) {
+        bgm.play().then(() => {
+          hasPlayedBgm = true;
+        }).catch(() => {});
+      }
+    }
+    window.addEventListener('click', startBgmOnFirstInteraction, { once: true });
+
+    // 리그 오브 레전드 챔피언 데이터
+    const champions = [
+      { id: 'Ahri', name: '아리' },
+      { id: 'Akali', name: '아칼리' },
+      { id: 'Yasuo', name: '야스오' },
+      { id: 'LeeSin', name: '리 신' },
+      { id: 'Zed', name: '제드' },
+      { id: 'Jinx', name: '징크스' },
+      { id: 'Jayce', name: '제이스' },
+      { id: 'Teemo', name: '티모' }
+    ];
+
+    let cardsData = [...champions, ...champions];
     
     const board = document.getElementById('card-board');
     const resetBtn = document.getElementById('reset-btn');
+    const bgmBtn = document.getElementById('bgm-btn');
     let flippedCards = [];
     let isLockBoard = false;
 
-    // 카드를 무작위로 섞는 함수 (Fisher-Yates Shuffle)
+    // 카드를 무작위로 섞는 함수
     function shuffle(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -66,62 +111,68 @@
       
       const shuffledCards = shuffle([...cardsData]);
 
-      shuffledCards.forEach((icon, index) => {
-        // 카드 개별 요소 생성
+      shuffledCards.forEach((champ) => {
         const cardContainer = document.createElement('div');
         cardContainer.className = 'perspective w-full h-full cursor-pointer';
 
+        const imgUrl = `https://ddragon.leagueoflegends.com/cdn/14.1.1/img/champion/${champ.id}.png`;
+
         cardContainer.innerHTML = `
           <div class="card-inner relative w-full h-full duration-500 transform-style-3d rounded-xl shadow-lg">
-            <!-- 카드 뒷면 (기본 파란색) -->
-            <div class="card-front absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center backface-hidden border-2 border-blue-400/30 hover:brightness-110 transition">
-              <div class="w-8 h-8 rounded-full border-2 border-white/20 flex items-center justify-center">
-                <span class="text-white/40 text-xs font-bold">?</span>
+            <!-- 카드 뒷면 -->
+            <div class="card-front absolute inset-0 bg-gradient-to-br from-blue-600 to-blue-900 rounded-xl flex items-center justify-center backface-hidden border-2 border-blue-400/50 hover:brightness-110 transition shadow-inner">
+              <div class="w-8 h-8 rounded-full border-2 border-white/30 flex items-center justify-center bg-white/10">
+                <span class="text-white/70 text-xs font-bold">L</span>
               </div>
             </div>
-            <!-- 카드 앞면 (이모지 및 흰색 배경) -->
-            <div class="card-back absolute inset-0 bg-slate-100 rounded-xl flex items-center justify-center backface-hidden rotate-y-180 border-2 border-slate-300">
-              <span class="text-3xl md:text-4xl">${icon}</span>
+            <!-- 카드 앞면 -->
+            <div class="card-back absolute inset-0 bg-slate-800 rounded-xl overflow-hidden backface-hidden rotate-y-180 border-2 border-amber-400/60 shadow-md flex items-center justify-center">
+              <img src="${imgUrl}" alt="${champ.name}" class="w-full h-full object-cover" onerror="this.onerror=null; this.remove(); this.parentNode.innerText='${champ.name}';">
             </div>
           </div>
         `;
 
-        // 카드 클릭 이벤트
-        cardContainer.addEventListener('click', () => handleCardClick(cardContainer, icon));
+        cardContainer.addEventListener('click', () => handleCardClick(cardContainer, champ.id));
         board.appendChild(cardContainer);
       });
     }
 
-    // 카드 클릭 처리
-    function handleCardClick(card, icon) {
+    // 카드 클릭 처리 및 효과음 재생
+    function handleCardClick(card, champId) {
       const inner = card.querySelector('.card-inner');
 
-      // 이미 뒤집혀있거나 로직이 진행 중일 때는 클릭 무시
-      if (isLockBoard || inner.classList.contains('rotate-y-180') || flippedCards.includes(card)) {
+      if (isLockBoard || inner.classList.contains('rotate-y-180') || flippedCards.some(item => item.card === card)) {
         return;
       }
 
-      // 카드 뒤집기 애니메이션 적용
-      inner.classList.add('rotate-y-180');
-      flippedCards.push({ card, icon, inner });
+      // 카드 뒤집기 효과음
+      if (!isMuted) {
+        flipSfx.currentTime = 0;
+        flipSfx.play();
+      }
 
-      // 카드가 2장 뒤집혔을 때 매칭 확인
+      inner.classList.add('rotate-y-180');
+      flippedCards.push({ card, id: champId, inner });
+
       if (flippedCards.length === 2) {
         checkMatch();
       }
     }
 
-    // 카드 매칭 확인
+    // 카드 매칭 확인 및 성공 효과음 재생
     function checkMatch() {
       isLockBoard = true;
       const [first, second] = flippedCards;
 
-      if (first.icon === second.icon) {
-        // 일치하는 경우
+      if (first.id === second.id) {
+        // 매칭 성공 효과음
+        if (!isMuted) {
+          matchSfx.currentTime = 0;
+          matchSfx.play();
+        }
         flippedCards = [];
         isLockBoard = false;
       } else {
-        // 일치하지 않는 경우 -> 일정 시간 후 다시 뒤집기
         setTimeout(() => {
           first.inner.classList.remove('rotate-y-180');
           second.inner.classList.remove('rotate-y-180');
@@ -130,6 +181,20 @@
         }, 900);
       }
     }
+
+    // BGM 토글 버튼 이벤트
+    bgmBtn.addEventListener('click', () => {
+      isMuted = !isMuted;
+      if (isMuted) {
+        bgm.pause();
+        bgmBtn.innerText = '🔇 BGM 끔';
+        bgmBtn.classList.replace('text-amber-400', 'text-slate-400');
+      } else {
+        bgm.play();
+        bgmBtn.innerText = '🔊 BGM 켜짐';
+        bgmBtn.classList.replace('text-slate-400', 'text-amber-400');
+      }
+    });
 
     // 리셋 버튼 이벤트
     resetBtn.addEventListener('click', createBoard);
