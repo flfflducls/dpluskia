@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>4x4 카드 게임판</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* 카드 뒤집기 3D 효과 */
+    .perspective {
+      perspective: 1000px;
+    }
+    .transform-style-3d {
+      transform-style: preserve-3d;
+    }
+    .backface-hidden {
+      backface-visibility: hidden;
+    }
+    .rotate-y-180 {
+      transform: rotateY(180deg);
+    }
+  </style>
+</head>
+<body class="bg-slate-900 min-h-screen flex flex-col items-center justify-center p-4 select-none">
+
+  <!-- 헤더 영역 -->
+  <h1 class="text-3xl font-bold text-white mb-6 tracking-wide">4x4 카드 게임</h1>
+
+  <!-- 4x4 카드 그리드 판 -->
+  <div id="card-board" class="grid grid-cols-4 gap-3 w-full max-w-md aspect-square bg-slate-800 p-4 rounded-2xl shadow-2xl border border-slate-700">
+    <!-- 자바스크립트에 의해 16개의 카드가 동적으로 생성됩니다 -->
+  </div>
+
+  <!-- 상태 및 리셋 버튼 -->
+  <div class="mt-6 flex items-center gap-4">
+    <button id="reset-btn" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg shadow-md transition duration-200 active:scale-95">
+      게임 다시 시작
+    </button>
+  </div>
+
+  <script>
+    // 이모지 쌍 데이터 (8개 이모지 x 2 = 총 16장)
+    const cardIcons = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼'];
+    let cardsData = [...cardIcons, ...cardIcons];
+    
+    const board = document.getElementById('card-board');
+    const resetBtn = document.getElementById('reset-btn');
+    let flippedCards = [];
+    let isLockBoard = false;
+
+    // 카드를 무작위로 섞는 함수 (Fisher-Yates Shuffle)
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    // 게임판 생성 함수
+    function createBoard() {
+      board.innerHTML = '';
+      flippedCards = [];
+      isLockBoard = false;
+      
+      const shuffledCards = shuffle([...cardsData]);
+
+      shuffledCards.forEach((icon, index) => {
+        // 카드 개별 요소 생성
+        const cardContainer = document.createElement('div');
+        cardContainer.className = 'perspective w-full h-full cursor-pointer';
+
+        cardContainer.innerHTML = `
+          <div class="card-inner relative w-full h-full duration-500 transform-style-3d rounded-xl shadow-lg">
+            <!-- 카드 뒷면 (기본 파란색) -->
+            <div class="card-front absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center backface-hidden border-2 border-blue-400/30 hover:brightness-110 transition">
+              <div class="w-8 h-8 rounded-full border-2 border-white/20 flex items-center justify-center">
+                <span class="text-white/40 text-xs font-bold">?</span>
+              </div>
+            </div>
+            <!-- 카드 앞면 (이모지 및 흰색 배경) -->
+            <div class="card-back absolute inset-0 bg-slate-100 rounded-xl flex items-center justify-center backface-hidden rotate-y-180 border-2 border-slate-300">
+              <span class="text-3xl md:text-4xl">${icon}</span>
+            </div>
+          </div>
+        `;
+
+        // 카드 클릭 이벤트
+        cardContainer.addEventListener('click', () => handleCardClick(cardContainer, icon));
+        board.appendChild(cardContainer);
+      });
+    }
+
+    // 카드 클릭 처리
+    function handleCardClick(card, icon) {
+      const inner = card.querySelector('.card-inner');
+
+      // 이미 뒤집혀있거나 로직이 진행 중일 때는 클릭 무시
+      if (isLockBoard || inner.classList.contains('rotate-y-180') || flippedCards.includes(card)) {
+        return;
+      }
+
+      // 카드 뒤집기 애니메이션 적용
+      inner.classList.add('rotate-y-180');
+      flippedCards.push({ card, icon, inner });
+
+      // 카드가 2장 뒤집혔을 때 매칭 확인
+      if (flippedCards.length === 2) {
+        checkMatch();
+      }
+    }
+
+    // 카드 매칭 확인
+    function checkMatch() {
+      isLockBoard = true;
+      const [first, second] = flippedCards;
+
+      if (first.icon === second.icon) {
+        // 일치하는 경우
+        flippedCards = [];
+        isLockBoard = false;
+      } else {
+        // 일치하지 않는 경우 -> 일정 시간 후 다시 뒤집기
+        setTimeout(() => {
+          first.inner.classList.remove('rotate-y-180');
+          second.inner.classList.remove('rotate-y-180');
+          flippedCards = [];
+          isLockBoard = false;
+        }, 900);
+      }
+    }
+
+    // 리셋 버튼 이벤트
+    resetBtn.addEventListener('click', createBoard);
+
+    // 초기 게임판 생성
+    createBoard();
+  </script>
+</body>
+</html>
